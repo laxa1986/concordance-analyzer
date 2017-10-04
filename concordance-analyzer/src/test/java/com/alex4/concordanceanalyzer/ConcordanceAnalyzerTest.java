@@ -25,11 +25,6 @@ public class ConcordanceAnalyzerTest {
         sut.analyze(null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void shouldNotAcceptSentenceWithoutWords() {
-        sut.analyze("a. ' .");
-    }
-
     // --- corner cases ---
 
     @Test
@@ -50,6 +45,12 @@ public class ConcordanceAnalyzerTest {
         List<WordOccurrence> concordance1 = sut.analyze("a b");
         List<WordOccurrence> concordance2 = new ConcordanceAnalyzer().analyze("a b.");
         assertThat(concordance1, equalTo(concordance2));
+    }
+
+    @Test
+    public void shouldNotAcceptSentenceWithoutWords() {
+        List<WordOccurrence> concordance = sut.analyze("a. ' .");
+        assertEquals(concordance, word("a."));
     }
 
     // --- simple cases ---
@@ -158,26 +159,61 @@ public class ConcordanceAnalyzerTest {
     // --- several sentences ---
 
     @Test
+    public void shouldStripLastSentenceDelimiters() {
+        List<WordOccurrence> concordance = sut.analyze("test!!!");
+        assertEquals(concordance, word("test"));
+    }
+
+    @Test
     public void shouldRespectSentenceNumber() {
-        List<WordOccurrence> concordance = sut.analyze("a. b");
+        List<WordOccurrence> concordance = sut.analyze("a. B");
         assertEquals(concordance, word("a"), word("b", 2));
     }
 
     @Test
+    public void shouldNotConsiderNewSentenceWhenInStartsWithSmallLetter() {
+        List<WordOccurrence> concordance = sut.analyze("a. b");
+        assertEquals(concordance, word("a."), word("b"));
+    }
+
+    @Test
     public void shouldMatchSameWordInDifferentSentences() {
-        List<WordOccurrence> concordance = sut.analyze("a. a");
+        List<WordOccurrence> concordance = sut.analyze("a. A");
         assertEquals(concordance, word("a", 1,2));
     }
 
     @Test
     public void exclamationPointAndQuestionMarkAreOneSentence() {
-        List<WordOccurrence> concordance = sut.analyze("a!? a");
+        List<WordOccurrence> concordance = sut.analyze("a!? A");
         assertEquals(concordance, word("a", 1,2));
     }
 
     @Test
     public void shouldConsiderDotsAsSentenceDelimiter() {
-        List<WordOccurrence> concordance = sut.analyze("Hey... never mind");
+        List<WordOccurrence> concordance = sut.analyze("Hey... Never mind");
         assertEquals(concordance, word("hey"), word("mind",2), word("never", 2));
+    }
+
+//    @Test
+//    public void shouldWorkFineWithIdEstAtTheEndOfSentence() {
+//        List<WordOccurrence> concordance = sut.analyze("So i.e. Jack");
+//        assertEquals(concordance, word("i.e."), word("jack"), word("so"));
+//    }
+
+    @Test
+    public void shouldWorkCorrectWithComplexTexts() {
+        List<WordOccurrence> concordance = sut.analyze("This is a test. This is a T.L.A. test. Now with a Dr. in it.");
+        assertEquals(concordance,
+                word("a", 1,2,3),
+                word("dr.", 3),
+                word("in", 3),
+                word("is", 1,2),
+                word("it", 3),
+                word("now", 3),
+                word("t.l.a.", 2),
+                word("test", 1,2),
+                word("this", 1,2),
+                word("with", 3)
+        );
     }
 }

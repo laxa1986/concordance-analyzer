@@ -20,6 +20,10 @@ public class ConcordanceAnalyzer {
         return UPPERCASE_LETTER <= type && type <= OTHER_LETTER;
     }
 
+    private static boolean isLetter(char chr) {
+        return isLetter(Character.getType(chr));
+    }
+
     private static boolean isSentenceDelimiter(char chr) {
         return chr == '.' || chr == '!' || chr == '?';
     }
@@ -35,23 +39,36 @@ public class ConcordanceAnalyzer {
         LinkedList<String> sentences = new LinkedList<>();
 
         int previousSentenceEnd = text.length();
-        for (int i=text.length()-1; i>=0; i--) {
+        for (int i=text.length()-1; i>0; i--) {
             char chr = text.charAt(i);
             int type = Character.getType(chr);
-            if (type == SPACE_SEPARATOR) {
-                char _chr = text.charAt(i-1);
 
-                // skip "i.e." case - this is not an end of sentence
-                // checking i-2 symbol need to respect '...' case
-                if (_chr == '.' && i>4 && text.charAt(i-3) == '.' && text.charAt(i-2) != '.') {
-                    continue;
-                }
+            // text. A
+            if (type != UPPERCASE_LETTER) {
+                continue;
+            }
 
-                if (isSentenceDelimiter(_chr)) {
-                    String sentence = text.substring(i, previousSentenceEnd);
-                    previousSentenceEnd = i;
-                    sentences.addFirst(sentence);
+            int j = i-1;
+
+            // one or more spaces
+            char chr1;
+            do {
+                chr1 = text.charAt(j);
+                int type1 = Character.getType(chr1);
+                if (type1 != SPACE_SEPARATOR) {
+                    break;
                 }
+                j--;
+            } while (j>0);
+            if (j == i-1 || j==0) {
+                continue;
+            }
+            // one ore more spaces found and skipped
+
+            if (isSentenceDelimiter(chr1)) {
+                String sentence = text.substring(i, previousSentenceEnd);
+                previousSentenceEnd = j+1;
+                sentences.addFirst(sentence);
             }
         }
 
@@ -63,6 +80,7 @@ public class ConcordanceAnalyzer {
 
     /**
      * Split sentence to tokens by space, so sentence "Tom: Cate" produce list of two tokens: ["Tom:", "Cate"]
+     *
      * @param sentence sentence to analyze
      * @return number of tokens
      */
@@ -115,12 +133,7 @@ public class ConcordanceAnalyzer {
         for (int i=token.length()-1; i>=0; i--) {
             char chr = token.charAt(i);
             int type = Character.getType(chr);
-            if (isLetter(type)) {
-                end = i;
-                break;
-            }
-            // i.e. case
-            if (chr == '.' && start == i-3 && token.charAt(i-2) == '.') {
+            if (isLetter(type) || chr == '.') {
                 end = i;
                 break;
             }
@@ -129,6 +142,13 @@ public class ConcordanceAnalyzer {
         return token.substring(start, end+1);
     }
 
+    /**
+     * Analyze given text and generate concordance,
+     * i.e. an alphabetical list of all word occurrences, labeled with word frequencies
+     *
+     * @param text arbitrary human readable text
+     * @return the concordance
+     */
     public List<WordOccurrence> analyze(String text) {
         if (text == null) {
             throw new IllegalArgumentException("null text not allowed");
@@ -142,11 +162,38 @@ public class ConcordanceAnalyzer {
         List<String> sentences = splitToSentences(text);
         int sentenceNumber = 1;
         for (String sentence : sentences) {
+            sentence = stripSentenceDelimiters(sentence);
             analyzeSentence(sentence, sentenceNumber);
             sentenceNumber++;
         }
 
         return new ArrayList<>(wordMap.values());
+    }
+
+    /**
+     * "Phrase." -> "Phrase"
+     * "Question?" -> "Question"
+     * "Made in U.S.A." -> "Made in U.S.A."
+     *
+     * @param sentence incoming sentence
+     * @return sentence without trailing delimiters
+     */
+    private static String stripSentenceDelimiters(String sentence) {
+        int i;
+        for (i=sentence.length()-1; i>0; i--) {
+            char chr = sentence.charAt(i);
+            if (endsWithAbbreviation(sentence, i)) {
+                break;
+            }
+            if (!isSentenceDelimiter(chr)) {
+                break;
+            }
+        }
+        return sentence.substring(0, i+1);
+    }
+
+    private static boolean endsWithAbbreviation(String str, int end) {
+        return end >= 3 && str.charAt(end) == '.' && isLetter(str.charAt(end-1)) && str.charAt(end-2) == '.' && isLetter(str.charAt(end-3));
     }
 
     private void analyzeSentence(String sentence, int sentenceNumber) {

@@ -11,6 +11,11 @@ public class ConcordancePrinter {
         this.printStream = printStream;
     }
 
+    /**
+     * Print given concordance in PrintStream passed as constructor argument
+     *
+     * @param concordance concordance to print
+     */
     public void print(List<WordOccurrence> concordance) {
         int number = 1;
         for (WordOccurrence wordOccurrence : concordance) {
@@ -24,8 +29,8 @@ public class ConcordancePrinter {
         String word = wordOccurrence.getWord();
         int wordCount = wordOccurrence.getWordCount();
 
-        int longerstWord = 20;
-        int indent = longerstWord - word.length();
+        int longestWord = 20;
+        int indent = longestWord - word.length();
         String spaces = ""; for (int i=0; i<indent; i++) spaces += " ";
 
         List<String> sentenceNumbers = wordOccurrence.getSentenceNumbers().stream().map(Object::toString).collect(Collectors.toList());
